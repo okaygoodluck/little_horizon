@@ -1,0 +1,51 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Função auxiliar para checar se usuário está logado
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Regras da coleção 'Users' (Perfil dos Pais)
+    match /Users/{userId} {
+      // Usuário só pode ler/escrever o próprio documento
+      allow read, update, delete: if isSignedIn() && request.auth.uid == userId;
+      // Qualquer usuário autenticado pode criar seu documento inicial
+      allow create: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Regras da coleção 'Children' (Perfil da Criança)
+    match /Children/{childId} {
+      // O usuário pode acessar/modificar os dados da criança se o 'parentId' for igual ao seu uid
+      allow read, update, delete: if isSignedIn() && resource.data.parentId == request.auth.uid;
+      // Ao criar, o parentId deve ser o uid do usuário logado
+      allow create: if isSignedIn() && request.resource.data.parentId == request.auth.uid;
+    }
+
+    // Regras da coleção 'ChildVaccines' (Acompanhamento Vacinal)
+    match /ChildVaccines/{vaccineRecordId} {
+      // O usuário só pode gerenciar vacinas se o childId pertencer a ele
+      // Isso exigiria um get() para checar o parentId da criança, para simplificar e reduzir custos:
+      // A regra ideal no modelo SaaS:
+      allow read, write: if isSignedIn() && request.auth.uid == resource.data.parentId;
+    }
+
+    // Regras da coleção 'JournalEntries' (Diário Emocional)
+    match /JournalEntries/{entryId} {
+      allow read, write: if isSignedIn() && request.auth.uid == resource.data.parentId;
+    }
+
+    // Coleções bases (Somente leitura para usuários comuns, escrita bloqueada)
+    match /VaccinesBase/{document=**} {
+      allow read: if isSignedIn();
+      allow write: if false; // Somente via Admin SDK (Backoffice)
+    }
+
+    match /MilestonesBase/{document=**} {
+      allow read: if isSignedIn();
+      allow write: if false; // Somente via Admin SDK (Backoffice)
+    }
+  }
+}
