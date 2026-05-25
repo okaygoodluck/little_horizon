@@ -6,6 +6,8 @@ import { TextTitle, TextBody } from '../../shared/widgets/Typography';
 import { Button } from '../../shared/widgets/Button';
 
 import { createUserProfile, getUserProfile } from '../../core/database';
+import { auth } from '../../core/firebaseConfig';
+import { signInAnonymously } from 'firebase/auth';
 
 export default function AuthScreen({ navigation }) {
   const setUser = useAppStore((state) => state.setUser);
@@ -14,15 +16,17 @@ export default function AuthScreen({ navigation }) {
   const handleLogin = async () => {
     setLoading(true);
     try {
-      // Aqui integrariamos a autenticação real do Firebase.
-      const fakeUid = 'mock-uid'; 
-      await createUserProfile(fakeUid, 'mock@parent.com', 'Responsável Mock');
-      const profile = await getUserProfile(fakeUid);
+      // Usando autenticação anônima real do Firebase para MVP
+      const userCredential = await signInAnonymously(auth);
+      const user = userCredential.user;
+      
+      await createUserProfile(user.uid, 'anonymous@horizon.app', 'Responsável');
+      const profile = await getUserProfile(user.uid);
       
       setUser(profile);
       navigation.replace('Onboarding');
     } catch (e) {
-      console.error(e);
+      console.error("Erro no AuthScreen: ", e);
     } finally {
       setLoading(false);
     }
